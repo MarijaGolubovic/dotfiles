@@ -11,9 +11,7 @@ function __graphical_environments
             set ens (string join "\n" $ens $e)
         end
     end
-    eval __graphical_environment_(
-        printf $ens | fzf --layout reverse-list --no-sort
-    )
+    __graphical_environment_bspwm
 end
 
 function __graphical_environment_tty

@@ -307,11 +307,11 @@ super + l
 
 # Change volume using standard keys for default sink
 super + {Prior, Next}
-	pactl set-sink-volume "$(pactl info | grep 'Default Sink:' | sed 's/.*: //')" {+,-}1%
+	pactl set-sink-volume "$(pactl info | grep 'Default Sink:' | sed 's/.*: //')" {+,-}5%
 
 # Change volume using media keys for default sink
 {XF86AudioRaiseVolume,XF86AudioLowerVolume}
-	pactl set-sink-volume "$(pactl info | grep 'Default Sink:' | sed 's/.*: //')" {+,-}1%
+	pactl set-sink-volume "$(pactl info | grep 'Default Sink:' | sed 's/.*: //')" {+,-}5%
 
 # Toggle volume using standard keys for default sink
 super + Insert

@@ -9,6 +9,7 @@ APPS='redshift-qt
       dino --gapplication-service
       mail-notification
       ayatana-webmail
+      kdeconnect-indicator
       '
 
 app_list() {
