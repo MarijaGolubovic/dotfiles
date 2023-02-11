@@ -5,6 +5,7 @@
 APPS='redshift-qt
       dunst
       flameshot
+      kdeconnect-indicator
       signal-desktop --start-in-tray
       dino --gapplication-service
       mail-notification
