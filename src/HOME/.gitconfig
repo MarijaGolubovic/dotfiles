@@ -1,7 +1,7 @@
 [user]
 	email = marijagolubovic16@gmail.com
 	name = Marija Golubovic
-	#signingkey = A14B0539F97EB0F32E4DB5A6491FDD271C9A4994
+	#signingkey = 
 [init]
 	defaultBranch = master
 [pull]
@@ -13,3 +13,6 @@
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
+[safe]
+	directory = /home/marija/spesbot/spes/spes_autonomy
+	directory = /home/marija/spesbot/shared/mgk_ws/src/green
