@@ -1,23 +1,24 @@
-#! /usr/bin/env dash
-# WMRC_DEPS: sudo
-# WMRC_FLAGS:
+#!/bin/sh
+
+export WMRC_DEPENDENCIES='sudo'
+export WMRC_LIBRARIES='notify'
 
 off() {
-
+	notify -u critical -i system-shutdown "Shutting down system"
 	sudo shutdown -P now
-
 }
 
 reboot() {
-
+	notify -u critical -i system-reboot "Rebooting system"
 	sudo shutdown -r now
+}
 
+hibernate() {
+	info "Hibernating system"
+	sudo systemctl hibernate
 }
 
 suspend() {
-
+	info "Suspending system"
 	sudo systemctl suspend
-
 }
-
-. "$WMRC_MODULES/init"

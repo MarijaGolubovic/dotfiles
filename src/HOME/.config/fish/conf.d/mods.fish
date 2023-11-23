@@ -80,6 +80,19 @@ function __abbr_os_debian -d 'Package manager abbrevations for Debian'
 
 end
 
+function __abbr_os_fedora -d 'Package manager abbrevations for Fedora'
+
+    set pkgmgr "$su_cmd"'dnf'
+
+    abbr --add ys "$pkgmgr install" # Install package
+    abbr --add yss "$pkgmgr search" # Search repository
+    abbr --add yi "$pkgmgr info" # Package info
+    abbr --add y "$pkgmgr update && $pkgmgr upgrade" # Update and upgrade
+    abbr --add yr "$pkgmgr remove" # Remove package
+    abbr --add yc "$pkgmgr clean" # Clean cache
+
+end
+
 # Abbrevations
 
 if status --is-interactive
@@ -103,7 +116,7 @@ if status --is-interactive
     set os (grep '^ID=' /etc/os-release | cut -d'=' -f2)
     eval "__abbr_os_$os"
 
-    if grep -q signingkey ~/.gitconfig
+    if test -f ~/.gitconfig && grep -q signingkey ~/.gitconfig
         set sign_upper ' -S'
         set sign_lower ' -s'
     else
@@ -230,7 +243,7 @@ function _sudo_widget -d 'Append sudo to last or current command'
     end
 end
 
-bind \cs _sudo_widget
+bind \ce _sudo_widget
 if bind -M insert >/dev/null 2>&1
     bind -M insert \cr _sudo_widget
 end

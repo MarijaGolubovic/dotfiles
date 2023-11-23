@@ -1,23 +1,14 @@
-#! /usr/bin/env dash
-# WMRC_DEPS: picom
-# WMRC_FLAGS:
+#!/bin/sh
+
+export WMRC_DEPENDENCIES='picom'
 
 start() {
-
-  [ -z "$(pgrep -u "$(whoami)" picom)" ] || \
-    error "Picom is already running!" fatal 2
-
-  picom &
-
+  if daemon_get_pid; then
+		error "Picom is already running!"
+		return 1
+	else
+		info "Starting picom"
+		picom &
+		daemon_set_pid "$!"
+	fi
 }
-
-stop() {
-
-  [ -z "$(pgrep -u "$(whoami)" picom)" ] && \
-    error "Picom is not running!" fatal 3
-
-  killall -u "$(whoami)" -9 picom > /dev/null
-
-}
-
-. "$WMRC_MODULES/init"

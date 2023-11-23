@@ -1,16 +1,19 @@
-#! /usr/bin/env dash
-# WMRC_DEPS: pgrep
-# WMRC_FLAGS:
+#!/bin/sh
 
-APPS='redshift-qt
-      dunst
+export WMRC_DEPENDENCIES='pgrep'
+
+APPS='unclutter -idle 1
+      redshift-qt
       flameshot
       kdeconnect-indicator
       signal-desktop --start-in-tray
       dino --gapplication-service
       mail-notification
       ayatana-webmail
-      kdeconnect-indicator
+      safeeyes
+      libinput-gestures-setup start
+      gromit-mpx
+      xhost +si:localuser:$USER
       '
 
 app_list() {
@@ -18,13 +21,14 @@ app_list() {
   APPLIST=""
 
   if [ -n "$2" ]; then
-    
+
     for A in $(echo "$*" | sed "s/$1//g"); do
-    
+
       APPLIST="$APPLIST\n$(echo "$APPS" |
               grep -P "^ *$A( |$)" ||
-              error "Application '$A' is not listed!")"
-    
+              warn "Application not listed" "$A"
+      )"
+
     done
 
   else
@@ -43,19 +47,20 @@ start() {
   app_list "$@"
 
   for A in $(echo "$APPLIST" | sed 's/^ *//g; s/ /\&nbsp/g'); do
-    
+
     CMD="$(echo "$A" | sed 's/\&nbsp/ /g')"
     EXE="$(echo "$CMD" | cut -d' ' -f1)"
 
     if [ -n "$(command -v "$EXE")" ]; then
       if pgrep -u "$(whoami)" "$EXE" >/dev/null; then
-        error "Application '$EXE' is already running!"
+        warn "Application already running" "$EXE"
         continue
       else
+        info "Starting application" "$EXE"
         $CMD >/dev/null 2>&1 &
       fi
     else
-      error "Application '$EXE' is not installed!"
+      warn "Application not installed" "$EXE"
     fi
 
   done
@@ -69,18 +74,16 @@ stop() {
   app_list "$@"
 
   for A in $(echo "$APPLIST" | sed 's/^ *//g; s/ /\&nbsp/g'); do
-    
+
     EXE="$(echo "$A" | sed 's/\&nbsp/ /g' | cut -d' ' -f1)"
 
     if pgrep -u "$(whoami)" "$EXE" >/dev/null; then
       killall -u "$(whoami)" -9 "$EXE" &
     else
-      error "Application '$EXE' is not running!"
+      warn "Application not running" "$EXE"
       continue
     fi
 
   done
 
 }
-
-. "$WMRC_MODULES/init"

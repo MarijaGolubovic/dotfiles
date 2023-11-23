@@ -1,8 +1,10 @@
-#! /usr/bin/env dash
-# WMRC_DEPS: bspwm, bspc, xrandr
-# WMRC_FLAGS:
+#!/bin/sh
+
+export WMRC_DEPENDENCIES='bspwm bspc xrandr'
 
 preferences() {
+
+  info "Set bswpm preferences"
 
   # Visual options
   bspc config top_padding 				        0
@@ -36,6 +38,8 @@ preferences() {
 }
 
 workspaces() {
+
+  info "Show bspwm workspaces"
 
   local MONITORS
   local W
@@ -106,7 +110,7 @@ swap_monitor() {
 
 }
 
-start() {
+init() {
 
   preferences
   workspaces
@@ -115,4 +119,11 @@ start() {
 
 }
 
-. "$WMRC_MODULES/init"
+start() {
+  if daemon_get_pid; then
+		error "Bspwm is already running!"
+		return 1
+	fi
+  daemon_set_pid "$$"
+  exec bspwm
+}

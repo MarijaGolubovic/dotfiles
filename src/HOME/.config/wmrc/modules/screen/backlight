@@ -1,120 +1,153 @@
-#! /usr/bin/env dash
-# WMRC_DEPS: sudo, ddcutil
-# WMRC_FLAGS: 
+#!/bin/sh
 
-INTERNAL_VENDOR="$(find /sys/class/backlight/ -mindepth 1 -maxdepth 1 -printf '%P' | head -n 1)"
+export WMRC_DEPENDENCIES='sudo ddcutil'
+export _module
 
-MAX_FILE="/sys/class/backlight/$INTERNAL_VENDOR/max_brightness"
-CUR_FILE="/sys/class/backlight/$INTERNAL_VENDOR/brightness"
+WMRC_BACKLIGHT_DEFAULT="${WMRC_BACKLIGHT_DEFAULT:-100}"
+WMRC_BACKLIGHT_STEP="${WMRC_BACKLIGHT_STEP:-10}"
 
-is_internal() {
-  if [ -f "$MAX_FILE" ] && [ -f "$CUR_FILE" ]; then
-    return 0 # Intel backlight
-  else
-    return 1 # external monitor
-  fi
+internal_vendor="$(find /sys/class/backlight/ -mindepth 1 -maxdepth 1 -printf '%P' | head -n 1)"
+internal_file="/sys/class/backlight/$internal_vendor/brightness"
+internal_file_max="/sys/class/backlight/$internal_vendor/max_brightness"
+external_file="/tmp/wmrc::$(echo "$_module" | sed 's,/,::,g')@$(whoami)${DISPLAY}.brightness"
+
+init() {
+    if lsmod | grep -q i2c_dev; then
+        info "Already loaded I2C kernel module"
+    elif sudo modprobe i2c-dev; then
+        info "Loaded I2C kernel module"
+    else
+        error "Unable to load I2C kernel module"
+        return 1
+    fi
+    if has_monitor internal; then
+        info 'Detected internal monitor' "$internal_vendor"
+    fi
+    if detect_external external; then
+        info 'Detected external monitor'
+        ddcutil_read
+    else
+        rm -f "$external_file"
+    fi
 }
 
-read() {
-
-  if is_internal; then
-    [ -f "$MAX_FILE" ] && [ -f "$CUR_FILE" ] || \
-      error "Brightness control is unavailable!" fatal 2
-
-    sudo -v >/dev/null || \
-      error "User '$(whoami)' is not allowed to run sudo!" fatal 3
-
-    MAX="$(cat "$MAX_FILE")"
-    CUR="$(cat "$CUR_FILE")"
-
-  else
-
-    sudo modprobe i2c-dev || \
-      error "Unable to load I2C kernel module!" fatal 4
-
-    CUR="$(sudo ddcutil getvcp 10 | grep -Po 'current value *= *\K.*?(?=,)')"
-    MAX="$(sudo ddcutil getvcp 10 | grep -Po 'max value *= *\K.*?(?=$)')"
-
-    [ "$CUR" != '' ] && [ "$MAX" != '' ] || \
-      error "Unable to read brigthness values!" fatal 2
-
-  fi
-
+has_monitor() {
+    _file="$(eval "$(printf 'echo $%s_file' "${1:-internal}")")"
+    if [ -f "$_file" ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
-step() {
-
-  STEP=$(( CUR * CUR / MAX / 33))
-  [ "$STEP" = "0" ] && \
-    STEP="1"
-
-  echo "$STEP"
-
+detect_external() {
+    if ddcutil detect | grep -q '^Display'; then
+        return 0
+    else
+        return 1
+    fi
 }
 
-write() {
-
-  read
-
-  NEW="$1"
-
-  [ "$NEW" -gt "$MAX" ] && \
-    NEW="$MAX"
-  
-  [ "$NEW" -lt "0" ] && \
-    NEW="0"
-
-  if is_internal; then
-
-    echo "$NEW" | sudo tee "$CUR_FILE"
-
-  else
-
-    sudo ddcutil setvcp 10 "$NEW"
-
-  fi
-
+set_to() {
+    if [ "$1" != 'internal' ] && [ "$1" != 'external' ]; then
+        _value="${1:-$WMRC_BACKLIGHT_DEFAULT}"
+        shift 1 2>/dev/null
+    else
+        _value="$WMRC_BACKLIGHT_DEFAULT"
+    fi
+    if has_monitor internal && [ "$1" != 'external' ]; then
+        _max="$(cat "$internal_file_max")"
+        _value="$((_value*_max/100))"
+        _internal="$((_value<_max?_value:_max))"
+        _internal="$((_value>0?_value:0))"
+        echo "$_internal" | sudo tee "$internal_file" >/dev/null
+        info 'Set internal backlight' "$_internal"
+    fi
+    if has_monitor external && [ "$1" != 'internal' ]; then
+        if ddcutil_write "$_value"; then
+            info 'Set external backlight' "$_value"
+        else
+            error 'Failed to set external backlight'
+        fi
+    fi
 }
 
-inc() {
-  
-  read
-  step
-  
-  [ -z "$2" ] && \
-    MUL=1 || MUL="$2"
-
-  CUR=$(( CUR + STEP * MUL ))
-  
-  write "$CUR"
-
+increase() {
+    if [ "$1" != 'internal' ] && [ "$1" != 'external' ]; then
+        _step="${1:-$WMRC_BACKLIGHT_STEP}"
+        shift 1 2>/dev/null
+    else
+        _step="$WMRC_BACKLIGHT_STEP"
+    fi
+    if has_monitor internal && [ "$1" != 'external' ]; then
+        _current="$(cat "$internal_file")"
+        _max="$(cat "$internal_file_max")"
+        _internal="$((_current+_step*_max/100))"
+        _internal="$((_internal<_max?_internal:_max))"
+        _internal="$((_internal>0?_internal:0))"
+        echo "$_internal" | sudo tee "$internal_file" >/dev/null
+        info 'Increase internal backlight' "$_internal"
+    fi
+    if has_monitor external && [ "$1" != 'internal' ]; then
+        _current="$(cat "$external_file")"
+        _current="$((_current+_step))"
+        if ddcutil_write "$_current"; then
+            info 'Increased external backlight' "$_current"
+        else
+            error 'Failed to increase external backlight' "$_current"
+            ddcutil_read
+        fi
+    fi
 }
 
-dec() {
-
-  read
-  step
-  
-  [ -z "$2" ] && \
-    MUL=1 || MUL="$2"
-
-  CUR=$(( CUR - STEP * MUL ))
-  
-  write "$CUR"
-
+decrease() {
+    if [ "$1" != 'internal' ] && [ "$1" != 'external' ]; then
+        _step="${1:-$WMRC_BACKLIGHT_STEP}"
+        shift 1 2>/dev/null
+    else
+        _step="$WMRC_BACKLIGHT_STEP"
+    fi
+    if has_monitor internal && [ "$1" != 'external' ]; then
+        _current="$(cat "$internal_file")"
+        _max="$(cat "$internal_file_max")"
+        _internal="$((_current-_step*_max/100))"
+        _internal="$((_internal<_max?_internal:_max))"
+        _internal="$((_internal>0?_internal:0))"
+        echo "$_internal" | sudo tee "$internal_file" >/dev/null
+        info 'Decrease internal backlight' "$_internal"
+    fi
+    if has_monitor external && [ "$1" != 'internal' ]; then
+        _current="$(cat "$external_file")"
+        _current="$((_current-_step))"
+        if ddcutil_write "$_current"; then
+            info 'Decreased external backlight' "$_current"
+        else
+            error 'Failed to decrease external backlight' "$_current"
+            ddcutil_read
+        fi
+    fi
 }
 
-equ() {
-  
-  read
-
-  [ -z "$2" ] && \
-    MUL=1 || MUL="$2"
-
-  CUR=$(( MAX / 100 * MUL ))
-  
-  write "$CUR"
-
+ddcutil_write() {
+    if [ "$1" -gt 100 ] || [ "$1" -lt 0 ]; then
+        warn 'External backlight value reached the limit'
+        return 0
+    fi
+    if ! daemon_get_pid; then
+        ddcutil setvcp 10 "$1" &
+        _ddcutil_pid="$!"
+        daemon_set_pid "$_ddcutil_pid"
+        if wait "$_ddcutil_pid"; then
+             echo "$1" > "$external_file"
+        else
+            return 1
+        fi
+    fi
 }
 
-. "$WMRC_MODULES/init"
+ddcutil_read() {
+    if ! daemon_get_pid; then
+        daemon_set_pid "$$"
+        ddcutil getvcp 10 | grep -Po 'current value *= *\K.*?(?=,)' > "$external_file"
+    fi
+}
