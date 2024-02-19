@@ -9,7 +9,11 @@
   "workbench.colorTheme": "Default Dark Modern",
   "workbench.iconTheme": "vscode-icons",
   "editor.suggestSelection": "first",
-  "editor.rulers": [80, 100, 120],
+  "editor.rulers": [
+    80,
+    100,
+    120
+  ],
   "editor.formatOnSave": true,
   "editor.lineHeight": 20,
   "explorer.autoReveal": true,

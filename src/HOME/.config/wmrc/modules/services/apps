@@ -12,6 +12,7 @@ APPS='unclutter -idle 1
       signal-desktop --start-in-tray
       dino --gapplication-service
       safeeyes
+      nm-applet
       gromit-mpx
       '
 
